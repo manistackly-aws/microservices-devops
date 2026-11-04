@@ -1,20 +1,34 @@
 pipeline {
     agent any
 
+    environment {
+        PYTHON = 'python3'
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
+                echo 'Checking out source code from GitHub'
                 checkout scm
             }
         }
 
-        stage('Validate Repository') {
+        stage('Verify Repository') {
             steps {
                 sh '''
+                    echo "Checking repository structure"
+
                     test -f user-service/app.py
+                    test -f user-service/requirements.txt
+
                     test -f product-service/app.py
+                    test -f product-service/requirements.txt
+
                     test -f order-service/app.py
+                    test -f order-service/requirements.txt
+
+                    echo "Repository structure verified"
                 '''
             }
         }
@@ -22,41 +36,61 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    python3 -m pip install --upgrade pip
+                    set -e
 
-                    if [ -f user-service/requirements.txt ]; then
-                        python3 -m pip install -r user-service/requirements.txt
-                    fi
+                    for service in user-service product-service order-service
+                    do
+                        echo "Installing dependencies for $service"
 
-                    if [ -f product-service/requirements.txt ]; then
-                        python3 -m pip install -r product-service/requirements.txt
-                    fi
+                        cd "$WORKSPACE/$service"
 
-                    if [ -f order-service/requirements.txt ]; then
-                        python3 -m pip install -r order-service/requirements.txt
-                    fi
+                        python3 -m venv .venv
+
+                        .venv/bin/python -m pip install --upgrade pip
+
+                        .venv/bin/python -m pip install -r requirements.txt
+
+                        cd "$WORKSPACE"
+                    done
                 '''
             }
         }
 
-        stage('Python Syntax Check') {
+        stage('Validate Python Code') {
             steps {
                 sh '''
-                    python3 -m py_compile user-service/app.py
-                    python3 -m py_compile product-service/app.py
-                    python3 -m py_compile order-service/app.py
+                    set -e
+
+                    for service in user-service product-service order-service
+                    do
+                        echo "Validating $service"
+
+                        python3 -m py_compile "$service/app.py"
+                    done
+
+                    echo "All Python files passed validation"
                 '''
+            }
+        }
+
+        stage('Build Summary') {
+            steps {
+                echo 'All three microservices passed pipeline validation.'
             }
         }
     }
 
     post {
         success {
-            echo 'Build Successful!'
+            echo 'SUCCESS: Microservices pipeline completed.'
         }
 
         failure {
-            echo 'Build Failed!'
+            echo 'FAILURE: Please check Jenkins Console Output.'
+        }
+
+        always {
+            echo 'Pipeline execution completed.'
         }
     }
 }
