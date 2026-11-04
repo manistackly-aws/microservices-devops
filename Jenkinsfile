@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -16,6 +15,26 @@ pipeline {
                     test -f user-service/app.py
                     test -f product-service/app.py
                     test -f order-service/app.py
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    python3 -m pip install --upgrade pip
+
+                    if [ -f user-service/requirements.txt ]; then
+                        python3 -m pip install -r user-service/requirements.txt
+                    fi
+
+                    if [ -f product-service/requirements.txt ]; then
+                        python3 -m pip install -r product-service/requirements.txt
+                    fi
+
+                    if [ -f order-service/requirements.txt ]; then
+                        python3 -m pip install -r order-service/requirements.txt
+                    fi
                 '''
             }
         }
